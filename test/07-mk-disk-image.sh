@@ -39,9 +39,11 @@ fi;
 
 # A list of the prefix of rpm package name. ClearLinux KVM image doesn't
 # install those packages, so we install them by ourselves
-extra_rpm_package=("e2fsprogs-extras-" "dosfstools-bin-")
-
-
+extra_rpm_package=("e2fsprogs-extras-" "dosfstools-bin-" "weston-" "diffutils-bin-" \
+	"wayland-" "diffutils-bin-" "libinput-lib-" "pixman-lib-" \
+	"libxkbcommon-lib-" "mtdev-lib-" "libevdev-lib-" "libdrm-lib-" \
+	"libva-lib-" \
+	)              
 
 # the name fo disk image which will be created at last. used to boot
 # in UEFI OVMF
@@ -204,13 +206,14 @@ cp -r ${PATH_HV_OUT}/tools/*  ./img_p3/usr/bin/
 cp /usr/lib64/libuuid.so.1      ./img_p3/usr/lib64/
 cp /usr/lib64/libpciaccess.so.0 ./img_p3/usr/lib64/
 cp /usr/lib64/libcrypto.so.1.0.0        ./img_p3/usr/lib64/
-
+cp -a /usr/lib64/libgbm*        ./img_p3/usr/lib64/
 
 # copy launch_uos_script.sh which is used to start guest OS
 mkdir -p ./img_p3/root/
 cp -R ${LAUNCH_UOS_SCRIPT} ./img_p3/root/
 cp ./${ACRN_HV_DIR}/devicemodel/bios/VSBL* ./img_p3/root/
 cp ./12-create-network-for-uos.sh  ./img_p3/root/
+
 
 # remove the colorful prompt and terminal, it blinks on uart shell
 touch ./img_p3/root/.dircolors
@@ -232,6 +235,31 @@ PermitRootLogin yes
 PermitEmptyPasswords yes
 EOF
 
+# prepare weston/Xwayland systemd service
+mkdir -p ./img_p3/usr/lib/systemd/system/
+mkdir -p ./img_p3/usr/share/X11/xkb
+cat <<EOF>./img_p3/usr/lib/systemd/system/weston.service
+[Unit]
+Description=Weston
+
+[Service]
+User=root
+Environment=HOME=/root
+WorkingDirectory=/tmp
+Environment=XDG_RUNTIME_DIR=/run/wayland
+ExecStartPre=-/bin/mkdir -p /run/wayland
+ExecStart=/usr/bin/weston --idle-time=0 --log=/var/log/weston.log
+ExecStop=/usr/bin/killall -s TERM weston
+StandardInput=tty
+StandardOutput=journal
+StandardError=journal
+TTYPath=/dev/tty2
+SupplementaryGroups=input
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
 # create loader.conf
 cat <<EOF>./img_p1/loader/loader.conf
 default acrn
@@ -244,7 +272,13 @@ title "ACRN Hypervisor"
 linux  /EFI/org.clearlinux/${BZ_NAME}
 options  console=tty0 console=ttyS0 root=PARTUUID=${UUID_ROOT} rw \
 rootwait ignore_loglevel no_timer_check consoleblank=0 \
-cma=2560M@0x100000000-0
+i915.nuclear_pageflip=1 i915.tsd_init=7 i915.tsd_delay=2000 \
+i915.avail_planes_per_pipe=0x00010F \
+i915.domain_plane_owners=0x000011110000 \
+i915.enable_guc_loading=0 i915.enable_guc_submission=0 \
+i915.enable_preemption=1 i915.context_priority_mode=2 \
+i915.enable_gvt=1 i915.enable_initial_modeset=0 \
+cma=200M@0x100000000-0 hvlog=2M@0x1FE00000
 EOF
 
 for prefix in  ${extra_rpm_package[*]}; do
