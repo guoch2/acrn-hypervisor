@@ -142,9 +142,9 @@ kernel_cmdline_generic="maxcpus=$2 nohpet tsc=reliable intel_iommu=off \
 
 boot_dev_flag=",b"
 if [ $6 == 1 ];then
-  boot_image_option="--vsbl /root/VSBL.bin --enable_trusty"
+  boot_image_option="--vsbl  /usr/share/acrn/bios/VSBL_debug.bin --enable_trusty"
 else
-  boot_image_option="--vsbl /root/VSBL.bin --enable_trusty"
+  boot_image_option="--vsbl  /usr/share/acrn/bios/VSBL.bin --enable_trusty"
 fi
 kernel_cmdline="$kernel_cmdline_generic"
 

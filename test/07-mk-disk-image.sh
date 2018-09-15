@@ -184,6 +184,8 @@ cp -a /lib/firmware/intel-ucode ./img_p3/lib/firmware/intel-ucode
 cp -a /lib/firmware/i915 ./img_p3/lib/firmware/i915
 cp -a /lib/firmware/intel ./img_p3/lib/firmware/intel
 
+
+
 TMP_STR=`fdisk -l -o uuid,device ${IMG_DEV_LOOP} | grep ${IMG_DEV_LOOP}p3`
 UUID_ROOT=${TMP_STR::36}
 
@@ -211,8 +213,11 @@ cp -a /usr/lib64/libgbm*        ./img_p3/usr/lib64/
 # copy launch_uos_script.sh which is used to start guest OS
 mkdir -p ./img_p3/root/
 cp -R ${LAUNCH_UOS_SCRIPT} ./img_p3/root/
-cp ./${ACRN_HV_DIR}/devicemodel/bios/VSBL* ./img_p3/root/
 cp ./12-create-network-for-uos.sh  ./img_p3/root/
+
+# copy VSBL
+mkdir -p ./img_p3/usr/share/acrn/bios/
+cp ./${ACRN_HV_DIR}/devicemodel/bios/VSBL* ./img_p3/usr/share/acrn/bios/
 
 
 # remove the colorful prompt and terminal, it blinks on uart shell
