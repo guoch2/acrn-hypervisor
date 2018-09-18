@@ -128,6 +128,14 @@ About the scripts
   k) 10-unpack-rpm.sh
        ultility to unpack/install a RPM package for clearlinux doesn't use RPM
 
+  l) 11-acrn-in-qemu-ovmf.sh
+       run acrn/sos in qemu/ovmf virtualization environment
+
+  m) 12-create-network-for-uos.sh
+       script to run in SOS to set virtual bridge/NICs for UOS
+
+  n) 13-redo-acrn-efi.sh
+       a developer tool to rebuild acrn source code and copy the acrn.efi into image
 
 
 For developers who want to patch HV or SOS
@@ -137,6 +145,10 @@ SOS (Linux kernel) is managed as an individual repository. If you want to patch
 hypervisor or device model, you can "git format" the patches, add the prefix
 "hv-" to the patch file, and then put the patches into the same folder as the
 shell scripts.   For Linux kernel (SOS) patches, add prefix "sos-".
+
+   After acrn disk image has built successfully, if you made any changes for
+acrn-hypervisor, you can use 13-redo-acrn-efi.sh to update the image, and use
+11-acrn-in-qemu-ovmf.sh to try if the image is Ok.
 
 
 QA
