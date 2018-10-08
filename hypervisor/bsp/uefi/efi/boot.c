@@ -67,23 +67,15 @@ static inline void hv_jump(EFI_PHYSICAL_ADDRESS hv_start,
 	hf(MULTIBOOT_INFO_MAGIC, mbi);
 }
 
-EFI_STATUS construct_mbi(EFI_PHYSICAL_ADDRESS hv_hpa)
+EFI_STATUS
+construct_mbi(struct multiboot_info *mbi, struct multiboot_mmap *mmap)
 {
 	UINTN map_size, map_key;
 	UINT32 desc_version;
 	UINTN desc_size;
 	EFI_MEMORY_DESCRIPTOR *map_buf;
 	EFI_STATUS err = EFI_SUCCESS;
-	struct multiboot_info *mbi;
-	struct multiboot_mmap *mmap;
-	struct efi_context *efi_ctx;
 	int i, j;
-
-	mbi = MBOOT_INFO_PTR(hv_hpa);
-	mmap = MBOOT_MMAP_PTR(hv_hpa);
-	efi_ctx = BOOT_CTX_PTR(hv_hpa);
-	(void)memset((void *)mbi, 0x0, MBOOT_INFO_SIZE);
-	(void)memset((void *)mmap, 0x0, MBOOT_MMAP_SIZE);
 
 	/* We're just interested in the map's size for now */
 	map_size = 0;
@@ -177,18 +169,21 @@ again:
 	 * available RAM in e820 table
 	 */
 	mmap[j].mm_base_addr = hv_hpa;
-	mmap[j].mm_length = HV_RUNTIME_MEM_SIZE;
+	mmap[j].mm_length = CONFIG_RAM_SIZE;
 	mmap[j].mm_type = E820_RAM;
 	j++;
 
-	mbi->mi_flags |= MULTIBOOT_INFO_HAS_MMAP | MULTIBOOT_INFO_HAS_CMDLINE;
+	mbi->mi_flags |= MULTIBOOT_INFO_HAS_MMAP;
 	mbi->mi_mmap_length = j*sizeof(struct multiboot_mmap);
-
-	mbi->mi_cmdline = (UINTN)cmdline;
 	mbi->mi_mmap_addr = (UINTN)mmap;
 
-	mbi->mi_flags |= MULTIBOOT_INFO_HAS_DRIVES;
-	mbi->mi_drives_addr = (UINT32)(UINTN)efi_ctx;
+	if (cmdline != NULL) {
+		mbi->mi_cmdline = (UINTN)cmdline;
+		mbi->mi_flags |= MULTIBOOT_INFO_HAS_CMDLINE;
+		Print(L"cmdline: %s\n", cmdline);
+	} else {
+		Print(L" No commandline from EFI\n");
+	}
 
 out:
 	return err;
@@ -200,14 +195,20 @@ switch_to_guest_mode(EFI_HANDLE image, EFI_PHYSICAL_ADDRESS hv_hpa)
 	EFI_PHYSICAL_ADDRESS addr;
 	EFI_STATUS err;
 	struct multiboot_info *mbi;
+	struct multiboot_mmap *mmap;
 	struct efi_context *efi_ctx;
 	struct acpi_table_rsdp *rsdp = NULL;
 	int i;
 	EFI_CONFIGURATION_TABLE *config_table;
 
-	mbi = MBOOT_INFO_PTR(hv_hpa);
-	efi_ctx = BOOT_CTX_PTR(hv_hpa);
-	(void)memset((void *)efi_ctx, 0x0, BOOT_CTX_SIZE);
+	err = allocate_pool(EfiLoaderData, EBOOT_STRUCT_SIZE, (void **)&mmap);
+	if (err != EFI_SUCCESS)
+		goto out;
+	(void)memset((void *)mmap, 0x0, EBOOT_STRUCT_SIZE);
+
+	mbi = MBOOT_INFO_PTR(mmap);
+	efi_ctx = BOOT_CTX_PTR(mmap);
+
 
 	/* reserve secondary memory region for CPU trampoline code */
 	err = emalloc_reserved_mem(&addr, CONFIG_LOW_RAM_SIZE, MEM_ADDR_1MB);
@@ -215,6 +216,8 @@ switch_to_guest_mode(EFI_HANDLE image, EFI_PHYSICAL_ADDRESS hv_hpa)
 		goto out;
 	if (addr < 4096)
 		Print(L"Warning: CPU trampoline code buf occupied zero-page\n");
+
+	Print(L"alloc-low-mem: get@ 0x%lx, size=0x%lx\n", addr, CONFIG_LOW_RAM_SIZE);
 
 	efi_ctx->ap_trampoline_buf = (void *)addr;
 
@@ -245,9 +248,11 @@ switch_to_guest_mode(EFI_HANDLE image, EFI_PHYSICAL_ADDRESS hv_hpa)
 	efi_ctx->rsdp = rsdp;
 
 	/* construct multiboot info and deliver it to hypervisor */
-	err = construct_mbi(hv_hpa);
+	err = construct_mbi(mbi, mmap);
 	if (err != EFI_SUCCESS)
 		goto out;
+	mbi->mi_flags |= MULTIBOOT_INFO_HAS_DRIVES;
+	mbi->mi_drives_addr = (UINT32)(UINTN)efi_ctx;
 
 	asm volatile ("pushf\n\t"
 		      "pop %0\n\t"
@@ -363,12 +368,13 @@ efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *_table)
 	 * instead.
 	 */
 #ifdef CONFIG_RELOC
-	err = emalloc_reserved_mem(&hv_hpa, HV_RUNTIME_MEM_SIZE, MEM_ADDR_4GB);
+	err = emalloc_reserved_mem(&hv_hpa, CONFIG_RAM_SIZE, MEM_ADDR_4GB);
 #else
-	err = emalloc_fixed_addr(&hv_hpa, HV_RUNTIME_MEM_SIZE, CONFIG_RAM_START);
+	err = emalloc_fixed_addr(&hv_hpa, CONFIG_RAM_SIZE, CONFIG_RAM_START);
 #endif
 	if (err != EFI_SUCCESS)
 		goto failed;
+	Print(L"hv_hpa=0x%lx, config=0x%lx\n", hv_hpa, CONFIG_RAM_START);
 
 	memcpy((char *)hv_hpa, info->ImageBase + sec_addr, sec_size);
 

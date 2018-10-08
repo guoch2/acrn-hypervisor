@@ -39,11 +39,16 @@ SECTIONS
 
     } > ram
 
-	.rela :
-	{
-		*(.rela*)
-		*(.dyn*)
-	} > ram
+    .rela :
+    {
+        *(.rela.dyn)
+	*(.rela.plt)
+    } > ram
+
+    .dynsym :
+    {
+	*(.dynsym)
+    } > ram
 
 	. = ALIGN(4) ;
     ld_trampoline_load = .;

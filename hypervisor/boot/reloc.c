@@ -221,7 +221,7 @@ uint64_t prepare_trampoline(void)
 	dest_pa = (uint64_t)get_ap_trampoline_buf();
 #endif
 
-	pr_dbg("trampoline code: %llx size %x", dest_pa, size);
+	pr_err("trampoline code: %llx size %x", dest_pa, size);
 
 	/* Copy segment for AP initialization code below 1MB */
 	(void)memcpy_s(hpa2hva(dest_pa), (size_t)size, &ld_trampoline_load,

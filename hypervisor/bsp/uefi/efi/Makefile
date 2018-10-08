@@ -66,7 +66,7 @@ CFLAGS=-I. -I.. -I../../../include/arch/x86/guest -I$(INCDIR)/efi -I$(INCDIR)/ef
 		-Wall -I../fs/ -D$(ARCH) -O2 \
 		-include config.h
 
-CFLAGS += -mno-mmx -mno-sse -mno-sse2 -mno-80387 -mno-fp-ret-in-387
+CFLAGS += -mno-mmx -mno-sse -mno-sse2 -mno-80387 -mno-fp-ret-in-387 -g
 
 ifeq ($(ARCH),ia32)
 	ifeq ($(HOST),x86_64)

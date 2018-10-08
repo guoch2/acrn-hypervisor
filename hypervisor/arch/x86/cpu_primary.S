@@ -145,6 +145,8 @@ primary_start_long_mode:
     call relocate
 
     /* Load temportary GDT pointer value */
+    leaq    cpu_primary32_gdt(%rip), %rax
+    movq    %rax, cpu_primary32_gdt_ptr+2(%rip)
     lea     cpu_primary32_gdt_ptr(%rip), %rbx
     lgdt    (%ebx)
 
