@@ -50,11 +50,11 @@ function get_url()
 
 		# Pattern: <a href="clear-xxxxx-kvm.img.xz">clear-xxxxx-kvm.img.xz</a>
 
-		FILE=clearn_image_list.html
-		curl -sSL ${IMAGE_BASE} -o $FILE
+		FILE="clearn_image_list.html"
+		curl -sSL ${IMAGE_BASE} -o ${FILE}
 		[ ! -f $FILE ] && { echo "Failed to access ${IMAGE_BASE}"; exit 1; }
-		HREF= `grep -Pioe "<a +href *= *\"?clear-[0-9]*-kvm.img.xz[^\-].*?</a>"  ${FILE}| \
-		    grep -Pioe \"clear-[0-9]*-kvm.img.xz\"`
+		HREF=`grep -Pioe "<a +href *= *\"?clear-[0-9]*-kvm.img.xz[^\-].*?</a>" ${FILE} | \
+		    grep -Pioe \"clear-[0-9]*-kvm.img.xz\"` 
 		CLEAR_IMAGE_FNAME=`echo ${HREF} | sed 's/\"//g'`
 		[ -z "${CLEAR_IMAGE_FNAME}" ] && \
 			{ echo "Failed: check if the image named \"xxx-kvm.img.xz\" listed at ${IMAGE_BASE}"; exit 1; }
