@@ -1,0 +1,248 @@
+From 5caa6150ef9fbc4abdd1933f69f96426d43c3c80 Mon Sep 17 00:00:00 2001
+From: Chaohong guo <chaohong.guo@intel.com>
+Date: Mon, 8 Oct 2018 10:13:27 +0800
+Subject: [PATCH] EFI: Mark efi boot struct as EfiLoaderData type and enable
+ reloc
+
+Commit 951a24cd3d31f "allocate boot related struct right after hypervisor
+memory" merges the malloc of multiboot_info, efi_ctx and mmap structure
+into one call to alloc_pages(), but it marks the memory as EfiReserved.
+In fact they are no longer needed after sos boots up. The memory occupied
+by them should be released and reclaimed. Mark it as EfiLoaderData type,
+so that SOS can reclaim the memory afetr boot up.
+---
+ hypervisor/arch/x86/Kconfig       |  2 +-
+ hypervisor/arch/x86/cpu_primary.S |  2 ++
+ hypervisor/boot/reloc.c           |  2 +-
+ hypervisor/bsp/ld/link_ram.ld.in  | 15 ++++++----
+ hypervisor/bsp/uefi/efi/Makefile  |  2 +-
+ hypervisor/bsp/uefi/efi/boot.c    | 50 +++++++++++++++++--------------
+ hypervisor/bsp/uefi/efi/boot.h    | 10 +++----
+ 7 files changed, 48 insertions(+), 35 deletions(-)
+
+diff --git a/hypervisor/arch/x86/Kconfig b/hypervisor/arch/x86/Kconfig
+index d4b41165..cb0f7026 100644
+--- a/hypervisor/arch/x86/Kconfig
++++ b/hypervisor/arch/x86/Kconfig
+@@ -146,7 +146,7 @@ config MTRR_ENABLED
+ 
+ config RELOC
+ 	bool "Enable relocation"
+-	default n
++	default y
+ 
+ config IOMMU_INIT_BUS_LIMIT
+ 	hex "bus limitation when iommu init"
+diff --git a/hypervisor/arch/x86/cpu_primary.S b/hypervisor/arch/x86/cpu_primary.S
+index d018b8a8..7d2817b6 100644
+--- a/hypervisor/arch/x86/cpu_primary.S
++++ b/hypervisor/arch/x86/cpu_primary.S
+@@ -145,6 +145,8 @@ primary_start_long_mode:
+     call relocate
+ 
+     /* Load temportary GDT pointer value */
++    leaq    cpu_primary32_gdt(%rip), %rax
++    movq    %rax, cpu_primary32_gdt_ptr+2(%rip)
+     lea     cpu_primary32_gdt_ptr(%rip), %rbx
+     lgdt    (%ebx)
+ 
+diff --git a/hypervisor/boot/reloc.c b/hypervisor/boot/reloc.c
+index 330061e4..638d22ec 100644
+--- a/hypervisor/boot/reloc.c
++++ b/hypervisor/boot/reloc.c
+@@ -221,7 +221,7 @@ uint64_t prepare_trampoline(void)
+ 	dest_pa = (uint64_t)get_ap_trampoline_buf();
+ #endif
+ 
+-	pr_dbg("trampoline code: %llx size %x", dest_pa, size);
++	pr_err("trampoline code: %llx size %x", dest_pa, size);
+ 
+ 	/* Copy segment for AP initialization code below 1MB */
+ 	(void)memcpy_s(hpa2hva(dest_pa), (size_t)size, &ld_trampoline_load,
+diff --git a/hypervisor/bsp/ld/link_ram.ld.in b/hypervisor/bsp/ld/link_ram.ld.in
+index ef6cfd77..8409c93b 100644
+--- a/hypervisor/bsp/ld/link_ram.ld.in
++++ b/hypervisor/bsp/ld/link_ram.ld.in
+@@ -39,11 +39,16 @@ SECTIONS
+ 
+     } > ram
+ 
+-	.rela :
+-	{
+-		*(.rela*)
+-		*(.dyn*)
+-	} > ram
++    .rela :
++    {
++        *(.rela.dyn)
++	*(.rela.plt)
++    } > ram
++
++    .dynsym :
++    {
++	*(.dynsym)
++    } > ram
+ 
+ 	. = ALIGN(4) ;
+     ld_trampoline_load = .;
+diff --git a/hypervisor/bsp/uefi/efi/Makefile b/hypervisor/bsp/uefi/efi/Makefile
+index 66a46048..4c48b91a 100644
+--- a/hypervisor/bsp/uefi/efi/Makefile
++++ b/hypervisor/bsp/uefi/efi/Makefile
+@@ -66,7 +66,7 @@ CFLAGS=-I. -I.. -I../../../include/arch/x86/guest -I$(INCDIR)/efi -I$(INCDIR)/ef
+ 		-Wall -I../fs/ -D$(ARCH) -O2 \
+ 		-include config.h
+ 
+-CFLAGS += -mno-mmx -mno-sse -mno-sse2 -mno-80387 -mno-fp-ret-in-387
++CFLAGS += -mno-mmx -mno-sse -mno-sse2 -mno-80387 -mno-fp-ret-in-387 -g
+ 
+ ifeq ($(ARCH),ia32)
+ 	ifeq ($(HOST),x86_64)
+diff --git a/hypervisor/bsp/uefi/efi/boot.c b/hypervisor/bsp/uefi/efi/boot.c
+index 07f544e2..cd4510bd 100644
+--- a/hypervisor/bsp/uefi/efi/boot.c
++++ b/hypervisor/bsp/uefi/efi/boot.c
+@@ -67,24 +67,16 @@ static inline void hv_jump(EFI_PHYSICAL_ADDRESS hv_start,
+ 	hf(MULTIBOOT_INFO_MAGIC, mbi);
+ }
+ 
+-EFI_STATUS construct_mbi(EFI_PHYSICAL_ADDRESS hv_hpa)
++EFI_STATUS
++construct_mbi(struct multiboot_info *mbi, struct multiboot_mmap *mmap)
+ {
+ 	UINTN map_size, map_key;
+ 	UINT32 desc_version;
+ 	UINTN desc_size;
+ 	EFI_MEMORY_DESCRIPTOR *map_buf;
+ 	EFI_STATUS err = EFI_SUCCESS;
+-	struct multiboot_info *mbi;
+-	struct multiboot_mmap *mmap;
+-	struct efi_context *efi_ctx;
+ 	int i, j;
+ 
+-	mbi = MBOOT_INFO_PTR(hv_hpa);
+-	mmap = MBOOT_MMAP_PTR(hv_hpa);
+-	efi_ctx = BOOT_CTX_PTR(hv_hpa);
+-	(void)memset((void *)mbi, 0x0, MBOOT_INFO_SIZE);
+-	(void)memset((void *)mmap, 0x0, MBOOT_MMAP_SIZE);
+-
+ 	/* We're just interested in the map's size for now */
+ 	map_size = 0;
+ 	err = get_memory_map(&map_size, NULL, NULL, NULL, NULL);
+@@ -177,18 +169,21 @@ again:
+ 	 * available RAM in e820 table
+ 	 */
+ 	mmap[j].mm_base_addr = hv_hpa;
+-	mmap[j].mm_length = HV_RUNTIME_MEM_SIZE;
++	mmap[j].mm_length = CONFIG_RAM_SIZE;
+ 	mmap[j].mm_type = E820_RAM;
+ 	j++;
+ 
+-	mbi->mi_flags |= MULTIBOOT_INFO_HAS_MMAP | MULTIBOOT_INFO_HAS_CMDLINE;
++	mbi->mi_flags |= MULTIBOOT_INFO_HAS_MMAP;
+ 	mbi->mi_mmap_length = j*sizeof(struct multiboot_mmap);
+-
+-	mbi->mi_cmdline = (UINTN)cmdline;
+ 	mbi->mi_mmap_addr = (UINTN)mmap;
+ 
+-	mbi->mi_flags |= MULTIBOOT_INFO_HAS_DRIVES;
+-	mbi->mi_drives_addr = (UINT32)(UINTN)efi_ctx;
++	if (cmdline != NULL) {
++		mbi->mi_cmdline = (UINTN)cmdline;
++		mbi->mi_flags |= MULTIBOOT_INFO_HAS_CMDLINE;
++		Print(L"cmdline: %s\n", cmdline);
++	} else {
++		Print(L" No commandline from EFI\n");
++	}
+ 
+ out:
+ 	return err;
+@@ -200,14 +195,20 @@ switch_to_guest_mode(EFI_HANDLE image, EFI_PHYSICAL_ADDRESS hv_hpa)
+ 	EFI_PHYSICAL_ADDRESS addr;
+ 	EFI_STATUS err;
+ 	struct multiboot_info *mbi;
++	struct multiboot_mmap *mmap;
+ 	struct efi_context *efi_ctx;
+ 	struct acpi_table_rsdp *rsdp = NULL;
+ 	int i;
+ 	EFI_CONFIGURATION_TABLE *config_table;
+ 
+-	mbi = MBOOT_INFO_PTR(hv_hpa);
+-	efi_ctx = BOOT_CTX_PTR(hv_hpa);
+-	(void)memset((void *)efi_ctx, 0x0, BOOT_CTX_SIZE);
++	err = allocate_pool(EfiLoaderData, EBOOT_STRUCT_SIZE, (void **)&mmap);
++	if (err != EFI_SUCCESS)
++		goto out;
++	(void)memset((void *)mmap, 0x0, EBOOT_STRUCT_SIZE);
++
++	mbi = MBOOT_INFO_PTR(mmap);
++	efi_ctx = BOOT_CTX_PTR(mmap);
++
+ 
+ 	/* reserve secondary memory region for CPU trampoline code */
+ 	err = emalloc_reserved_mem(&addr, CONFIG_LOW_RAM_SIZE, MEM_ADDR_1MB);
+@@ -216,6 +217,8 @@ switch_to_guest_mode(EFI_HANDLE image, EFI_PHYSICAL_ADDRESS hv_hpa)
+ 	if (addr < 4096)
+ 		Print(L"Warning: CPU trampoline code buf occupied zero-page\n");
+ 
++	Print(L"alloc-low-mem: get@ 0x%lx, size=0x%lx\n", addr, CONFIG_LOW_RAM_SIZE);
++
+ 	efi_ctx->ap_trampoline_buf = (void *)addr;
+ 
+ 	config_table = sys_table->ConfigurationTable;
+@@ -245,9 +248,11 @@ switch_to_guest_mode(EFI_HANDLE image, EFI_PHYSICAL_ADDRESS hv_hpa)
+ 	efi_ctx->rsdp = rsdp;
+ 
+ 	/* construct multiboot info and deliver it to hypervisor */
+-	err = construct_mbi(hv_hpa);
++	err = construct_mbi(mbi, mmap);
+ 	if (err != EFI_SUCCESS)
+ 		goto out;
++	mbi->mi_flags |= MULTIBOOT_INFO_HAS_DRIVES;
++	mbi->mi_drives_addr = (UINT32)(UINTN)efi_ctx;
+ 
+ 	asm volatile ("pushf\n\t"
+ 		      "pop %0\n\t"
+@@ -363,12 +368,13 @@ efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *_table)
+ 	 * instead.
+ 	 */
+ #ifdef CONFIG_RELOC
+-	err = emalloc_reserved_mem(&hv_hpa, HV_RUNTIME_MEM_SIZE, MEM_ADDR_4GB);
++	err = emalloc_reserved_mem(&hv_hpa, CONFIG_RAM_SIZE, MEM_ADDR_4GB);
+ #else
+-	err = emalloc_fixed_addr(&hv_hpa, HV_RUNTIME_MEM_SIZE, CONFIG_RAM_START);
++	err = emalloc_fixed_addr(&hv_hpa, CONFIG_RAM_SIZE, CONFIG_RAM_START);
+ #endif
+ 	if (err != EFI_SUCCESS)
+ 		goto failed;
++	Print(L"hv_hpa=0x%lx, config=0x%lx\n", hv_hpa, CONFIG_RAM_START);
+ 
+ 	memcpy((char *)hv_hpa, info->ImageBase + sec_addr, sec_size);
+ 
+diff --git a/hypervisor/bsp/uefi/efi/boot.h b/hypervisor/bsp/uefi/efi/boot.h
+index 761c4b95..b1156c8d 100644
+--- a/hypervisor/bsp/uefi/efi/boot.h
++++ b/hypervisor/bsp/uefi/efi/boot.h
+@@ -77,14 +77,14 @@ typedef void(*hv_func)(int, struct multiboot_info*);
+ #define MBOOT_MMAP_SIZE (sizeof(struct multiboot_mmap) * MBOOT_MMAP_NUMS)
+ #define MBOOT_INFO_SIZE (sizeof(struct multiboot_info))
+ #define BOOT_CTX_SIZE  (sizeof(struct efi_context))
+-#define HV_RUNTIME_MEM_SIZE \
+-	(CONFIG_RAM_SIZE + MBOOT_MMAP_SIZE + MBOOT_INFO_SIZE + BOOT_CTX_SIZE)
++#define EBOOT_STRUCT_SIZE \
++	(MBOOT_MMAP_SIZE + MBOOT_INFO_SIZE + BOOT_CTX_SIZE)
+ #define MBOOT_MMAP_PTR(addr) \
+-	((struct multiboot_mmap *)((VOID *)addr + CONFIG_RAM_SIZE))
++	((struct multiboot_mmap *)((VOID *)addr))
+ #define MBOOT_INFO_PTR(addr) ((struct multiboot_info *) \
+-	((VOID *)addr + CONFIG_RAM_SIZE + MBOOT_MMAP_SIZE))
++	((VOID *)addr + MBOOT_MMAP_SIZE))
+ #define BOOT_CTX_PTR(addr) ((struct efi_context *) \
+-	((VOID *)addr + CONFIG_RAM_SIZE +  MBOOT_MMAP_SIZE + MBOOT_INFO_SIZE))
++	((VOID *)addr + MBOOT_MMAP_SIZE + MBOOT_INFO_SIZE))
+ 
+ 
+ struct efi_info {
+-- 
+2.17.1
+

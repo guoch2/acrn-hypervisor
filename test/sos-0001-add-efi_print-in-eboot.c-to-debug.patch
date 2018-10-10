@@ -1,0 +1,51 @@
+From cadab894fe5f27bee2c64702a79046556406efd5 Mon Sep 17 00:00:00 2001
+From: Chaohong guo <chaohong.guo@intel.com>
+Date: Wed, 10 Oct 2018 12:17:46 +0800
+Subject: [PATCH] add efi_print in eboot.c to debug
+
+---
+ arch/x86/boot/compressed/eboot.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/arch/x86/boot/compressed/eboot.c b/arch/x86/boot/compressed/eboot.c
+index 97c57b5f8d57..eac8b16e5d2b 100644
+--- a/arch/x86/boot/compressed/eboot.c
++++ b/arch/x86/boot/compressed/eboot.c
+@@ -646,6 +646,8 @@ struct boot_params *make_boot_params(struct efi_config *c)
+ 	else
+ 		setup_boot_services32(efi_early);
+ 
++	efi_printk(sys_table, "make_boot_params: 1111111\n");
++
+ 	status = efi_call_early(handle_protocol, handle,
+ 				&proto, (void *)&image);
+ 	if (status != EFI_SUCCESS) {
+@@ -661,6 +663,7 @@ struct boot_params *make_boot_params(struct efi_config *c)
+ 	}
+ 
+ 	memset(boot_params, 0x0, 0x4000);
++	efi_printk(sys_table, "make_boot_params: 22222\n");
+ 
+ 	hdr = &boot_params->hdr;
+ 	bi = &boot_params->apm_bios_info;
+@@ -696,6 +699,8 @@ struct boot_params *make_boot_params(struct efi_config *c)
+ 	if (status != EFI_SUCCESS)
+ 		goto fail2;
+ 
++	efi_printk(sys_table, "make_boot_params: 3333333\n");
++
+ 	status = handle_cmdline_files(sys_table, image,
+ 				      (char *)(unsigned long)hdr->cmd_line_ptr,
+ 				      "initrd=", hdr->initrd_addr_max,
+@@ -1042,6 +1047,8 @@ struct boot_params *efi_main(struct efi_config *c,
+ 		hdr->code32_start = bzimage_addr;
+ 	}
+ 
++	efi_printk(sys_table, "efi_main: ready to call exit_boot_service\n");
++
+ 	status = exit_boot(boot_params, handle, is64);
+ 	if (status != EFI_SUCCESS) {
+ 		efi_printk(sys_table, "exit_boot() failed!\n");
+-- 
+2.17.1
+
