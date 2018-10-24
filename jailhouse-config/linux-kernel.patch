@@ -1,0 +1,26 @@
+diff --git a/arch/x86/kernel/apic/vector.c b/arch/x86/kernel/apic/vector.c
+index 7654febd5102..464bc860afea 100644
+--- a/arch/x86/kernel/apic/vector.c
++++ b/arch/x86/kernel/apic/vector.c
+@@ -637,6 +637,7 @@ int __init arch_probe_nr_irqs(void)
+                nr_irqs = NR_VECTORS * nr_cpu_ids;
+ 
+        nr = (gsi_top + nr_legacy_irqs()) + 8 * nr_cpu_ids;
++
+ #if defined(CONFIG_PCI_MSI)
+        /*
+         * for MSI and HT dyn irq
+@@ -653,7 +654,11 @@ int __init arch_probe_nr_irqs(void)
+         * We don't know if PIC is present at this point so we need to do
+         * probe() to get the right number of legacy IRQs.
+         */
+-       return legacy_pic->probe();
++               nr = legacy_pic->probe();
++       if (nr == 0) 
++               return 32;
++       return nr;
++
+ }
+ 
+ void lapic_assign_legacy_vector(unsigned int irq, bool replace)
+
