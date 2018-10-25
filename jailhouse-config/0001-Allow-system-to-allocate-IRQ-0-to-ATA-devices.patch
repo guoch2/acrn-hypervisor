@@ -1,0 +1,78 @@
+From 3e06759687757f360c83206ec4acaa17afbfe3a1 Mon Sep 17 00:00:00 2001
+From: Chaohong guo <chaohong.guo@intel.com>
+Date: Thu, 25 Oct 2018 13:21:18 +0800
+Subject: [PATCH] Allow system to allocate IRQ 0 to ATA devices
+
+Interrupt vector 0 can be used on some platform. In libata, the routine
+ata_host_activate() doesn't consider irq=0 as invalid. As a result, when
+running linux in non-root cell of Jailhouse,  if we allocate just one
+PCI ATA device to the guest, the device will get an IRQ of value 0. This
+is perfectly legal. Moreover most ATA drivers will check if irq < 0 or
+irq == -1.
+
+Signed-off-by: Chaohong guo <chaohong.guo@intel.com>
+---
+ drivers/ata/libata-core.c    | 2 +-
+ drivers/ata/pata_arasan_cf.c | 4 ++--
+ drivers/ata/pata_falcon.c    | 2 +-
+ drivers/ata/pata_ixp4xx_cf.c | 2 +-
+ 4 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/ata/libata-core.c b/drivers/ata/libata-core.c
+index a9dd4ea7467d..d83ba91c5051 100644
+--- a/drivers/ata/libata-core.c
++++ b/drivers/ata/libata-core.c
+@@ -6628,7 +6628,7 @@ int ata_host_activate(struct ata_host *host, int irq,
+ 		return rc;
+ 
+ 	/* Special case for polling mode */
+-	if (!irq) {
++	if (irq < 0) {
+ 		WARN_ON(irq_handler);
+ 		return ata_host_register(host, sht);
+ 	}
+diff --git a/drivers/ata/pata_arasan_cf.c b/drivers/ata/pata_arasan_cf.c
+index ebecab8c3f36..133c7466a875 100644
+--- a/drivers/ata/pata_arasan_cf.c
++++ b/drivers/ata/pata_arasan_cf.c
+@@ -817,9 +817,9 @@ static int arasan_cf_probe(struct platform_device *pdev)
+ 	else
+ 		quirk = CF_BROKEN_UDMA; /* as it is on spear1340 */
+ 
+-	/* if irq is 0, support only PIO */
++	/* if irq < 0, support only PIO */
+ 	acdev->irq = platform_get_irq(pdev, 0);
+-	if (acdev->irq)
++	if (acdev->irq >= 0)
+ 		irq_handler = arasan_cf_interrupt;
+ 	else
+ 		quirk |= CF_BROKEN_MWDMA | CF_BROKEN_UDMA;
+diff --git a/drivers/ata/pata_falcon.c b/drivers/ata/pata_falcon.c
+index 41e0d6a6cd05..94407e3e2a70 100644
+--- a/drivers/ata/pata_falcon.c
++++ b/drivers/ata/pata_falcon.c
+@@ -171,7 +171,7 @@ static int pata_falcon_init_one(void)
+ 		      (unsigned long)base + ATA_HD_CONTROL);
+ 
+ 	/* activate */
+-	return ata_host_activate(host, 0, NULL, 0, &pata_falcon_sht);
++	return ata_host_activate(host, -1 , NULL, 0, &pata_falcon_sht);
+ }
+ 
+ module_init(pata_falcon_init_one);
+diff --git a/drivers/ata/pata_ixp4xx_cf.c b/drivers/ata/pata_ixp4xx_cf.c
+index 0b0d93065f5a..303337d1c1f7 100644
+--- a/drivers/ata/pata_ixp4xx_cf.c
++++ b/drivers/ata/pata_ixp4xx_cf.c
+@@ -169,7 +169,7 @@ static int ixp4xx_pata_probe(struct platform_device *pdev)
+ 		return -ENOMEM;
+ 
+ 	irq = platform_get_irq(pdev, 0);
+-	if (irq)
++	if (irq >= 0)
+ 		irq_set_irq_type(irq, IRQ_TYPE_EDGE_RISING);
+ 
+ 	/* Setup expansion bus chip selects */
+-- 
+2.17.1
+

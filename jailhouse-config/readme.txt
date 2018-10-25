@@ -14,7 +14,8 @@ Date:   Sun Oct 14 08:34:31 2018 +0200
 
     Merge tag 'libnvdimm-fixes-4.19-rc8' of git://git.kernel.org/pub/scm/linux/kernel/git/nvdimm/nvdimm
     
-2. apply linux-kernel.patch to 1.
+2. apply 0001-Allow-system-to-allocate-IRQ-0-to-ATA-devices.patch to 1
+   (the patch was sent to linux-ide mailing list, if your tree has it, don't apply it again)
 
 
 3. use kconfig-non-root as .config
