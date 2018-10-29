@@ -20,9 +20,9 @@
 struct {
 	struct jailhouse_cell_desc cell;
 	__u64 cpus[1];
-	struct jailhouse_memory mem_regions[7];
+	struct jailhouse_memory mem_regions[5];
 	__u8 pio_bitmap[0x2000];
-	struct jailhouse_pci_device pci_devices[2];
+	struct jailhouse_pci_device pci_devices[1];
 	struct jailhouse_pci_capability pci_caps[3];
 } __attribute__((packed)) config = {
 	.cell = {
@@ -45,35 +45,21 @@ struct {
 	},
 
 	.mem_regions = {
-		/* Low RAM */ {
-			.phys_start = 0x3a600000,
+		/* Low RAM */
+		{
+			.phys_start = 0x30600000,
 			.virt_start = 0,
-			.size = 0x00100000,
+			.size = 0x3b000000,
 			.flags = JAILHOUSE_MEM_READ | JAILHOUSE_MEM_WRITE |
 				JAILHOUSE_MEM_EXECUTE | JAILHOUSE_MEM_DMA |
 				JAILHOUSE_MEM_LOADABLE,
 
 		},
-		/* communication region */ {
+		/* communication region */
+		{
 			.virt_start = 0x00100000,
 			.size = 0x00001000,
 			.flags = JAILHOUSE_MEM_READ | JAILHOUSE_MEM_COMM_REGION,
-		},
-		/* high RAM */ {
-			.phys_start = 0x3a700000,
-			.virt_start = 0x00200000,
-			.size = 0x04a00000,
-			.flags = JAILHOUSE_MEM_READ | JAILHOUSE_MEM_WRITE |
-				JAILHOUSE_MEM_EXECUTE | JAILHOUSE_MEM_DMA |
-				JAILHOUSE_MEM_LOADABLE,
-		},
-		/* communication region */ {
-			.phys_start = 0x3f100000,
-			.virt_start = 0x3f100000,
-			.size = 0x000ff000,
-			.flags = JAILHOUSE_MEM_READ | JAILHOUSE_MEM_WRITE |
-				JAILHOUSE_MEM_ROOTSHARED
-
 		},
 
 		/* MemRegion: df248000-df249fff : ahci */
@@ -119,8 +105,8 @@ struct {
 		[  0x20/8 ...   0x2f/8] = 0,    /* pic1 */
 		[  0x30/8 ...   0x3f/8] = -1,  
 		[  0x40/8 ...   0x5f/8] = -1,  /*  timer0/1 */
-		[  0x60/8 ...   0x6f/8] = -1,  /* kbd, pnp ec */
-		[  0x70/8 ...   0x7f/8] = -1,  /* rtc */
+		[  0x60/8 ...   0x6f/8] = 0,  /* kbd, pnp ec */
+		[  0x70/8 ...   0x7f/8] = 0,  /* rtc */
 		[  0x80/8 ...   0x8f/8] = -1,  /* dma page reg */
 		[  0x90/8 ...  0x1ff/8] = -1,  
 		[ 0x200/8 ...  0x2d7/8] = -1,
@@ -139,18 +125,6 @@ struct {
 	},
 
 	.pci_devices = {
-		{
-			.type = JAILHOUSE_PCI_TYPE_IVSHMEM,
-			.domain = 0x0,
-			.bdf = 0x10 << 3,
-			.bar_mask = {
-				0xffffff00, 0xffffffff, 0x00000000,
-				0x00000000, 0xffffffe0, 0xffffffff,
-			},
-			.num_msix_vectors = 1,
-			.shmem_region = 3,
-			.shmem_protocol = JAILHOUSE_SHMEM_PROTO_VETH,
-		},
 		/* PCIDevice: 00:17.0 */
 		{
 			.type = JAILHOUSE_PCI_TYPE_DEVICE,

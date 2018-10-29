@@ -33,10 +33,10 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Configuration for Intel Corporation NUC7i5DNHE
- * created with '/usr/local/libexec/jailhouse/jailhouse config create configs/x86/nuc-7i5d-sata.c'
+ * created with '/usr/local/libexec/jailhouse/jailhouse config create --mem-hv 6M --mem-inmates 944M t.c'
  *
  * NOTE: This config expects the following to be appended to your kernel cmdline
- *       "memmap=0x5200000$0x3a000000"
+ *       "memmap=0x40000000$0x30000000"
  */
 
 #include <jailhouse/types.h>
@@ -58,8 +58,8 @@ struct {
 		.revision = JAILHOUSE_CONFIG_REVISION,
 		.flags = JAILHOUSE_SYS_VIRTUAL_DEBUG_CONSOLE,
 		.hypervisor_memory = {
-			.phys_start = 0x3a000000,
-			.size = 0x00600000,
+			.phys_start = 0x30000000,
+			.size = 0x600000,
 		},
 		.debug_console = {
 			.address = 0x3f8,
@@ -118,19 +118,19 @@ struct {
 			.flags = JAILHOUSE_MEM_READ | JAILHOUSE_MEM_WRITE |
 				JAILHOUSE_MEM_EXECUTE | JAILHOUSE_MEM_DMA,
 		},
-		/* MemRegion: 00100000-39ffffff : System RAM */
+		/* MemRegion: 00100000-2fffffff : System RAM */
 		{
 			.phys_start = 0x100000,
 			.virt_start = 0x100000,
-			.size = 0x39f00000,
+			.size = 0x2ff00000,
 			.flags = JAILHOUSE_MEM_READ | JAILHOUSE_MEM_WRITE |
 				JAILHOUSE_MEM_EXECUTE | JAILHOUSE_MEM_DMA,
 		},
-		/* MemRegion: 3f200000-779aafff : System RAM */
+		/* MemRegion: 70000000-779aafff : System RAM */
 		{
-			.phys_start = 0x3f200000,
-			.virt_start = 0x3f200000,
-			.size = 0x387ab000,
+			.phys_start = 0x70000000,
+			.virt_start = 0x70000000,
+			.size = 0x79ab000,
 			.flags = JAILHOUSE_MEM_READ | JAILHOUSE_MEM_WRITE |
 				JAILHOUSE_MEM_EXECUTE | JAILHOUSE_MEM_DMA,
 		},
@@ -479,27 +479,27 @@ struct {
 			.size = 0x4b000,
 			.flags = JAILHOUSE_MEM_READ | JAILHOUSE_MEM_WRITE,
 		},
-		/* MemRegion: 100000000-23e3fffff : System RAM */
+		/* MemRegion: 100000000-224bfffff : System RAM */
 		{
 			.phys_start = 0x100000000,
 			.virt_start = 0x100000000,
-			.size = 0x13e400000,
+			.size = 0x124c00000,
 			.flags = JAILHOUSE_MEM_READ | JAILHOUSE_MEM_WRITE |
 				JAILHOUSE_MEM_EXECUTE | JAILHOUSE_MEM_DMA,
 		},
-		/* MemRegion: 23e400000-23fffffff : Kernel */
+		/* MemRegion: 224c00000-226ffffff : Kernel */
 		{
-			.phys_start = 0x23e400000,
-			.virt_start = 0x23e400000,
-			.size = 0x1c00000,
+			.phys_start = 0x224c00000,
+			.virt_start = 0x224c00000,
+			.size = 0x2400000,
 			.flags = JAILHOUSE_MEM_READ | JAILHOUSE_MEM_WRITE |
 				JAILHOUSE_MEM_EXECUTE | JAILHOUSE_MEM_DMA,
 		},
-		/* MemRegion: 240000000-270ffffff : System RAM */
+		/* MemRegion: 227000000-270ffffff : System RAM */
 		{
-			.phys_start = 0x240000000,
-			.virt_start = 0x240000000,
-			.size = 0x31000000,
+			.phys_start = 0x227000000,
+			.virt_start = 0x227000000,
+			.size = 0x4a000000,
 			.flags = JAILHOUSE_MEM_READ | JAILHOUSE_MEM_WRITE |
 				JAILHOUSE_MEM_EXECUTE | JAILHOUSE_MEM_DMA,
 		},
@@ -529,21 +529,20 @@ struct {
 			.flags = JAILHOUSE_MEM_READ | JAILHOUSE_MEM_WRITE |
 				JAILHOUSE_MEM_EXECUTE | JAILHOUSE_MEM_DMA,
 		},
-		/* MemRegion: 3a600000-3f1fffff : JAILHOUSE Inmate Memory */
+		/* MemRegion: 30600000-6b5fffff : JAILHOUSE Inmate Memory */
 		{
-			.phys_start = 0x3a600000,
-			.virt_start = 0x3a600000,
-			.size = 0x04b00000,
+			.phys_start = 0x30600000,
+			.virt_start = 0x30600000,
+			.size = 0x3b000000,
 			.flags = JAILHOUSE_MEM_READ | JAILHOUSE_MEM_WRITE,
 		},
-		/* MemRegion: ISVHMEM shared memory region */
+		/* ISVHMEM MemRegion: 6b5fffff : JAILHOUSE Memory */
 		{
-			.phys_start = 0x3f100000,
-			.virt_start = 0x3f100000,
-			.size = 0x000ff000,
+			.phys_start = 0x6b600000,
+			.virt_start = 0x6b600000,
+			.size = 0xff000,
 			.flags = JAILHOUSE_MEM_READ | JAILHOUSE_MEM_WRITE,
 		},
-
 	},
 
 	.irqchips = {
@@ -567,7 +566,7 @@ struct {
 		[  0x78/8 ...  0x3af/8] = -1,
 		[ 0x3b0/8 ...  0x3df/8] = 0x00, /* VGA */
 		[ 0x3e0/8 ...  0x3f7/8] = -1,
-		[ 0x3f8/8 ...  0x3ff/8] = -1,  /* UART0 */
+		[ 0x3f8/8 ...  0x3ff/8] = 0,  /* UART0 */
 		[ 0x400/8 ...  0xcff/8] = -1,
 		[ 0xd00/8 ... 0xffff/8] = 0, /* HACK: PCI bus */
 	},

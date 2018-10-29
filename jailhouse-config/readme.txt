@@ -37,7 +37,7 @@ Date:   Mon Sep 24 12:57:19 2018 +0200
 
 
 
-2. copy nuc-7i5d-sata.c  rt-linux-sata.c  into jailhouse/configs/x86/
+2. copy nuc-7i5d-400MB.c  rt-linux-400MB.c  into jailhouse/configs/x86/
 
 3. apt-get install python-pip
    pip install mako
@@ -48,7 +48,7 @@ Date:   Mon Sep 24 12:57:19 2018 +0200
 =======================================================
 In NUC:
 1. vim /etc/default/grub to add:
-    GRUB_CMDLINE_LINUX_DEFAULT=" intel_iommu=off memmap=82M\\\$0x3a000000"
+    GRUB_CMDLINE_LINUX_DEFAULT=" intel_iommu=off memmap=0x400M\\\$0x30000000"
   and then, run "update-grub"
 
 
@@ -56,10 +56,10 @@ In NUC:
 
 
 3. cd jailhouse
-   jailhouse enable configs/x86/nuc-7i5d-sata.cell
+   jailhouse enable configs/x86/nuc-7i5d-400MB.cell
 
-4. jailhouse cell linux configs/x86/rt-linux-sata.cell  bzImage -c "console=ttyS0,115200 root=/dev/sda3"
-   // assuem that rootfs of non-root cell is in /dev/sda3, which is SATA SSD
+4. jailhouse cell linux configs/x86/rt-linux-400MB.cell  bzImage -c "console=ttyS0,115200 root=/dev/sda3"
+   // assume that rootfs of non-root cell is in /dev/sda3, which is SATA SSD
 
 ~                                                                                                                                
 
