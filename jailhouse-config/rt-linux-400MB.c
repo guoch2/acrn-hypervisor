@@ -21,6 +21,7 @@ struct {
 	struct jailhouse_cell_desc cell;
 	__u64 cpus[1];
 	struct jailhouse_memory mem_regions[5];
+	struct jailhouse_irqchip irqchips[1];
 	__u8 pio_bitmap[0x2000];
 	struct jailhouse_pci_device pci_devices[1];
 	struct jailhouse_pci_capability pci_caps[3];
@@ -30,11 +31,14 @@ struct {
 		.revision = JAILHOUSE_CONFIG_REVISION,
 		.name = "rt-linux",
 		.flags = JAILHOUSE_CELL_PASSIVE_COMMREG |
-			JAILHOUSE_CELL_VIRTUAL_CONSOLE_PERMITTED,
+//			JAILHOUSE_CELL_VIRTUAL_CONSOLE_PERMITTED,
+			JAILHOUSE_CELL_VIRTUAL_CONSOLE_ACTIVE,
+//			JAILHOUSE_SYS_VIRTUAL_DEBUG_CONSOLE,
 
 		.cpu_set_size = sizeof(config.cpus),
 		.num_memory_regions = ARRAY_SIZE(config.mem_regions),
 		.pio_bitmap_size = ARRAY_SIZE(config.pio_bitmap),
+		.num_irqchips = ARRAY_SIZE(config.irqchips),
 		.num_pci_devices = ARRAY_SIZE(config.pci_devices),
 		.num_pci_caps = ARRAY_SIZE(config.pci_caps),
 
@@ -100,13 +104,23 @@ struct {
 
 #endif
 
+	 .irqchips = {
+		 /* IOAPIC */ {
+			 .address = 0xfec00000,
+			 .id = 0x1f0f8,
+			 .pin_bitmap = {
+				 (1 << 4),
+			 },
+		 },
+	 },
+
 	.pio_bitmap = {
 		[   0x0/8 ...   0x1f/8] = -1,    /* dma1 */
 		[  0x20/8 ...   0x2f/8] = 0,    /* pic1 */
 		[  0x30/8 ...   0x3f/8] = -1,  
-		[  0x40/8 ...   0x5f/8] = -1,  /*  timer0/1 */
-		[  0x60/8 ...   0x6f/8] = 0,  /* kbd, pnp ec */
-		[  0x70/8 ...   0x7f/8] = 0,  /* rtc */
+		[  0x40/8 ...   0x5f/8] = 0,  /*  timer0/1 */
+		[  0x60/8 ...   0x6f/8] = -1,  /* kbd, pnp ec */
+		[  0x70/8 ...   0x7f/8] = -1,  /* rtc */
 		[  0x80/8 ...   0x8f/8] = -1,  /* dma page reg */
 		[  0x90/8 ...  0x1ff/8] = -1,  
 		[ 0x200/8 ...  0x2d7/8] = -1,

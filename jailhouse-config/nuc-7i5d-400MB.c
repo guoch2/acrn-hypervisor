@@ -61,6 +61,7 @@ struct {
 			.phys_start = 0x30000000,
 			.size = 0x600000,
 		},
+#if 1
 		.debug_console = {
 			.address = 0x3f8,
 			.divider = 0x1,   /* 115200 */
@@ -68,6 +69,7 @@ struct {
 			.flags = JAILHOUSE_CON_ACCESS_PIO |
 				 JAILHOUSE_CON_REGDIST_1,
 		},
+#endif
 		.platform_info = {
 			.pci_mmconfig_base = 0xe0000000,
 			.pci_mmconfig_end_bus = 0xff,
@@ -566,7 +568,7 @@ struct {
 		[  0x78/8 ...  0x3af/8] = -1,
 		[ 0x3b0/8 ...  0x3df/8] = 0x00, /* VGA */
 		[ 0x3e0/8 ...  0x3f7/8] = -1,
-		[ 0x3f8/8 ...  0x3ff/8] = 0,  /* UART0 */
+		[ 0x3f8/8 ...  0x3ff/8] = -1,  /* UART0 */
 		[ 0x400/8 ...  0xcff/8] = -1,
 		[ 0xd00/8 ... 0xffff/8] = 0, /* HACK: PCI bus */
 	},

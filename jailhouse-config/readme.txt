@@ -28,7 +28,7 @@
           Merge tag 'libnvdimm-fixes-4.19-rc8' of git://git.kernel.org/pub/scm/linux/kernel/git/nvdimm/nvdimm
   
        b) apply my patch to mainline linux kernel: 
-            0001-Allow-system-to-allocate-IRQ-0-to-ATA-devices.patch to 1
+            0001-Allow-system-to-allocate-IRQ-0-to-ATA-devices.patch
       
          (the patch was sent to linux-ide mailing list)
 
@@ -93,7 +93,7 @@
   3.8  in jailhouse source dir:
        a)  jailhouse enable configs/x86/nuc-7i5d-400MB.cell
        b)  jailhouse cell linux configs/x86/rt-linux-400MB.cell  \
-                 bzImage -c "console=ttyS0,115200 rw 8250.force_polling=1 8250.nr_uarts=1 apparmor=0 root=/dev/sda3"
+                 bzImage -c "console=ttyS0,115200 root=/dev/sda3"
 
 
     Trouble : we expect that login prompt shown in serial console, but it doesn't.
