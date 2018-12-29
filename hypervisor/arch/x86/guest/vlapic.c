@@ -627,8 +627,42 @@ lvt_off_to_idx(uint32_t offset)
  *	APIC_OFFSET_LINT1_LVT
  *	APIC_OFFSET_ERROR_LVT
  */
-static inline uint32_t *
-vlapic_get_lvtptr(struct acrn_vlapic *vlapic, uint32_t offset)
+static inline uint32_t
+vlapic_get_hw_lvt(const struct acrn_vlapic *vlapic, uint32_t offset)
+{
+	const struct lapic_regs *lapic = &(vlapic->apic_page);
+	uint32_t i;
+	uint32_t val;
+
+	switch (offset) {
+	case APIC_OFFSET_CMCI_LVT:
+		val = lapic->lvt_cmci.v;
+		break;
+	default:
+		/*
+		 * The function caller could guarantee the pre condition.
+		 * All the possible 'offset' other than APIC_OFFSET_CMCI_LVT
+		 * could be handled here.
+		 */
+		i = lvt_off_to_idx(offset);
+		val = lapic->lvt[i].v;
+		break;
+	}
+	return val;
+}
+
+/**
+ * @pre offset value shall be one of the folllowing values:
+ *	APIC_OFFSET_CMCI_LVT
+ *	APIC_OFFSET_TIMER_LVT
+ *	APIC_OFFSET_THERM_LVT
+ *	APIC_OFFSET_PERF_LVT
+ *	APIC_OFFSET_LINT0_LVT
+ *	APIC_OFFSET_LINT1_LVT
+ *	APIC_OFFSET_ERROR_LVT
+ */
+static inline void
+vlapic_set_hw_lvt(struct acrn_vlapic *vlapic, uint32_t offset, uint32_t val)
 {
 	struct lapic_regs *lapic = &(vlapic->apic_page);
 	uint32_t i;
@@ -648,7 +682,7 @@ vlapic_get_lvtptr(struct acrn_vlapic *vlapic, uint32_t offset)
 		lvt_ptr = &(lapic->lvt[i].v);
 		break;
 	}
-	return lvt_ptr;
+	*lvt_ptr = val;
 }
 
 static inline uint32_t
@@ -664,13 +698,12 @@ vlapic_get_lvt(const struct acrn_vlapic *vlapic, uint32_t offset)
 static void
 vlapic_lvt_write_handler(struct acrn_vlapic *vlapic, uint32_t offset)
 {
-	uint32_t *lvtptr, mask, val, idx;
+	uint32_t mask, val, idx;
 	struct lapic_regs *lapic;
 	bool error = false;
 
 	lapic = &(vlapic->apic_page);
-	lvtptr = vlapic_get_lvtptr(vlapic, offset);
-	val = *lvtptr;
+	val = vlapic_get_hw_lvt(vlapic, offset);
 
 	if ((lapic->svr.v & APIC_SVR_ENABLE) == 0U) {
 		val |= APIC_LVT_M;
@@ -725,7 +758,7 @@ vlapic_lvt_write_handler(struct acrn_vlapic *vlapic, uint32_t offset)
 	}
 
 	if (error == false) {
-		*lvtptr = val;
+		vlapic_set_hw_lvt(vlapic, offset, val);
 		idx = lvt_off_to_idx(offset);
 		atomic_store32(&vlapic->lvt_last[idx], val);
 	}
@@ -1553,10 +1586,9 @@ vlapic_read(struct acrn_vlapic *vlapic, uint32_t offset_arg,
 	case APIC_OFFSET_ERROR_LVT:
 		*data = vlapic_get_lvt(vlapic, offset);
 #ifdef INVARIANTS
-		reg = vlapic_get_lvtptr(vlapic, offset);
-		ASSERT(*data == *reg,
+		ASSERT(*data == vlapic_get_hw_lvt(vlapic, offset),
 			"inconsistent lvt value at offset %#x: %#lx/%#x",
-			offset, *data, *reg);
+			offset, *data, vlapic_get_hw_lvt(vlapic, offset));
 #endif
 		break;
 	case APIC_OFFSET_TIMER_ICR:
@@ -1589,7 +1621,6 @@ vlapic_write(struct acrn_vlapic *vlapic, uint32_t offset,
 		uint64_t data)
 {
 	struct lapic_regs *lapic = &(vlapic->apic_page);
-	uint32_t *regptr;
 	uint32_t data32 = (uint32_t)data;
 	int32_t retval;
 
@@ -1642,8 +1673,7 @@ vlapic_write(struct acrn_vlapic *vlapic, uint32_t offset,
 		case APIC_OFFSET_LINT0_LVT:
 		case APIC_OFFSET_LINT1_LVT:
 		case APIC_OFFSET_ERROR_LVT:
-			regptr = vlapic_get_lvtptr(vlapic, offset);
-			*regptr = data32;
+			vlapic_set_hw_lvt(vlapic, offset, data32);
 			vlapic_lvt_write_handler(vlapic, offset);
 			break;
 		case APIC_OFFSET_TIMER_ICR:
