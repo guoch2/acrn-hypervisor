@@ -15,7 +15,7 @@
 struct page_walk_info {
 	uint64_t top_entry;	/* Top level paging structure entry */
 	uint32_t level;
-	uint32_t width;
+	uint32_t bit_width;
 	bool is_user_mode_access;
 	bool is_write_access;
 	bool is_inst_fetch;
@@ -101,11 +101,11 @@ static int32_t local_gva2gpa_common(struct acrn_vcpu *vcpu, const struct page_wa
 			if (base == NULL) {
 				fault = 1;
 			} else {
-				shift = (i * pw_info->width) + 12U;
-				index = (gva >> shift) & ((1UL << pw_info->width) - 1UL);
+				shift = (i * pw_info->bit_width) + 12U;
+				index = (gva >> shift) & ((1UL << pw_info->bit_width) - 1UL);
 				page_size = 1UL << shift;
 
-				if (pw_info->width == 10U) {
+				if (pw_info->bit_width == 10U) {
 					uint32_t *base32 = (uint32_t *)base;
 					/* 32bit entry */
 					entry = (uint64_t)(*(base32 + index));
@@ -289,13 +289,13 @@ int32_t gva2gpa(struct acrn_vcpu *vcpu, uint64_t gva, uint64_t *gpa,
 		*err_code &=  ~PAGE_FAULT_P_FLAG;
 
 		if (pm == PAGING_MODE_4_LEVEL) {
-			pw_info.width = 9U;
+			pw_info.bit_width = 9U;
 			ret = local_gva2gpa_common(vcpu, &pw_info, gva, gpa, err_code);
 		} else if (pm == PAGING_MODE_3_LEVEL) {
-			pw_info.width = 9U;
+			pw_info.bit_width = 9U;
 			ret = local_gva2gpa_pae(vcpu, &pw_info, gva, gpa, err_code);
 		} else if (pm == PAGING_MODE_2_LEVEL) {
-			pw_info.width = 10U;
+			pw_info.bit_width = 10U;
 			pw_info.pse = ((vcpu_get_cr4(vcpu) & CR4_PSE) != 0UL);
 			pw_info.nxe = false;
 			ret = local_gva2gpa_common(vcpu, &pw_info, gva, gpa, err_code);
