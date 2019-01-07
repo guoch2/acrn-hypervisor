@@ -1083,8 +1083,9 @@ vlapic_calcdest(struct acrn_vm *vm, uint64_t *dmask, uint32_t dest,
 
 						if (cluster != mda_cluster_id) {
 							continue;
+						} else {
+							mda_ldest = mda_cluster_ldest;
 						}
-						mda_ldest = mda_cluster_ldest;
 					} else {
 						/*
 						 * Guest has configured a bad logical
@@ -1211,6 +1212,8 @@ vlapic_process_init_sipi(struct acrn_vcpu* target_vcpu, uint32_t mode,
 				schedule_vcpu(target_vcpu);
 			}
 		}
+	} else {
+		/* No other state currently, do nothing */
 	}
 	return;
 }
@@ -1452,8 +1455,7 @@ vlapic_svr_write_handler(struct acrn_vlapic *vlapic)
 }
 
 static int32_t
-vlapic_read(struct acrn_vlapic *vlapic, uint32_t offset_arg,
-		uint64_t *data)
+vlapic_read(struct acrn_vlapic *vlapic, uint32_t offset_arg, uint64_t *data)
 {
 	struct lapic_regs *lapic = &(vlapic->apic_page);
 	uint32_t i;
@@ -1562,6 +1564,8 @@ vlapic_read(struct acrn_vlapic *vlapic, uint32_t offset_arg,
 			*data = lapic->dcr_timer.v;
 			break;
 		case APIC_OFFSET_RRR:
+			*data = 0UL;
+			break;
 		default:
 			*data = 0UL;
 			break;
@@ -1574,19 +1578,17 @@ vlapic_read(struct acrn_vlapic *vlapic, uint32_t offset_arg,
 }
 
 static int32_t
-vlapic_write(struct acrn_vlapic *vlapic, uint32_t offset,
-		uint64_t data)
+vlapic_write(struct acrn_vlapic *vlapic, uint32_t offset, uint64_t data)
 {
 	struct lapic_regs *lapic = &(vlapic->apic_page);
 	uint32_t *regptr;
-	uint32_t data32 = (uint32_t)data;
+	uint32_t val = (uint32_t)data;
 	int32_t retval;
 
 	ASSERT(((offset & 0xfU) == 0U) && (offset < PAGE_SIZE),
 		"%s: invalid offset %#x", __func__, offset);
 
-	dev_dbg(ACRN_DBG_LAPIC, "vlapic write offset %#x, data %#lx",
-		offset, data);
+	dev_dbg(ACRN_DBG_LAPIC, "vlapic write offset %#x, data %#lx", offset, data);
 
 	retval = 0;
 	if (offset <= sizeof(*lapic)) {
@@ -1595,34 +1597,34 @@ vlapic_write(struct acrn_vlapic *vlapic, uint32_t offset,
 			/* Force APIC ID as read only */
 			break;
 		case APIC_OFFSET_TPR:
-			vlapic_set_tpr(vlapic, data32 & 0xffU);
+			vlapic_set_tpr(vlapic, val & 0xffU);
 			break;
 		case APIC_OFFSET_EOI:
 			vlapic_process_eoi(vlapic);
 			break;
 		case APIC_OFFSET_LDR:
-			lapic->ldr.v = data32;
+			lapic->ldr.v = val;
 			vlapic_ldr_write_handler(vlapic);
 			break;
 		case APIC_OFFSET_DFR:
-			lapic->dfr.v = data32;
+			lapic->dfr.v = val;
 			vlapic_dfr_write_handler(vlapic);
 			break;
 		case APIC_OFFSET_SVR:
-			lapic->svr.v = data32;
+			lapic->svr.v = val;
 			vlapic_svr_write_handler(vlapic);
 			break;
 		case APIC_OFFSET_ICR_LOW:
 			if (is_x2apic_enabled(vlapic)) {
 				lapic->icr_hi.v = (uint32_t)(data >> 32U);
-				lapic->icr_lo.v = data32;
+				lapic->icr_lo.v = val;
 			} else {
-				lapic->icr_lo.v = data32;
+				lapic->icr_lo.v = val;
 			}
 			retval = vlapic_icrlo_write_handler(vlapic);
 			break;
 		case APIC_OFFSET_ICR_HI:
-			lapic->icr_hi.v = data32;
+			lapic->icr_hi.v = val;
 			break;
 		case APIC_OFFSET_CMCI_LVT:
 		case APIC_OFFSET_TIMER_LVT:
@@ -1632,7 +1634,7 @@ vlapic_write(struct acrn_vlapic *vlapic, uint32_t offset,
 		case APIC_OFFSET_LINT1_LVT:
 		case APIC_OFFSET_ERROR_LVT:
 			regptr = vlapic_get_lvtptr(vlapic, offset);
-			*regptr = data32;
+			*regptr = val;
 			vlapic_lvt_write_handler(vlapic, offset);
 			break;
 		case APIC_OFFSET_TIMER_ICR:
@@ -1640,12 +1642,12 @@ vlapic_write(struct acrn_vlapic *vlapic, uint32_t offset,
 			if (vlapic_lvtt_tsc_deadline(vlapic)) {
 				break;
 			}
-			lapic->icr_timer.v = data32;
+			lapic->icr_timer.v = val;
 			vlapic_icrtmr_write_handler(vlapic);
 			break;
 
 		case APIC_OFFSET_TIMER_DCR:
-			lapic->dcr_timer.v = data32;
+			lapic->dcr_timer.v = val;
 			vlapic_dcr_write_handler(vlapic);
 			break;
 
@@ -1767,7 +1769,7 @@ static int32_t
 vlapic_set_apicbase(struct acrn_vlapic *vlapic, uint64_t new)
 {
 
-	int32_t ret = 0;
+	int32_t ret;
 	uint64_t changed;
 	changed = vlapic->msr_apicbase ^ new;
 
@@ -1781,6 +1783,8 @@ vlapic_set_apicbase(struct acrn_vlapic *vlapic, uint64_t new)
 			"NOT support to change APIC_BASE MSR from %#lx to %#lx",
 			vlapic->msr_apicbase, new);
 		ret = -1;
+	} else {
+		ret = 0;
 	}
 
 	return ret;
@@ -2258,7 +2262,7 @@ int32_t vlapic_create(struct acrn_vcpu *vcpu)
  */
 void vlapic_free(struct acrn_vcpu *vcpu)
 {
-	struct acrn_vlapic *vlapic = NULL;
+	struct acrn_vlapic *vlapic;
 
 	vlapic = vcpu_vlapic(vcpu);
 
