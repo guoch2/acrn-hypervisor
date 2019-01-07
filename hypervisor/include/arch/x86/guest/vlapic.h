@@ -50,12 +50,12 @@
 struct vlapic_pir_desc {
 	uint64_t pir[4];
 	uint64_t pending;
-	uint64_t unused[3];
+	uint64_t reserved[3];
 } __aligned(64);
 
 struct vlapic_timer {
 	struct hv_timer timer;
-	uint32_t mode;
+	uint32_t tm_mode;
 	uint32_t tmicr;
 	uint32_t divisor_shift;
 };
@@ -89,9 +89,9 @@ struct acrn_vlapic {
 	 * vectors in the stack.
 	 *
 	 * Operations:
-	 *     init: isrvec_stk_top = 0;
-	 *     push: isrvec_stk_top++; isrvec_stk[isrvec_stk_top] = x;
-	 *     pop : isrvec_stk_top--;
+	 *     init: isrvec_stk_top <=== 0
+	 *     push: isrvec_stk_top ++, then isrvec_stk[isrvec_stk_top] <=== x
+	 *     pop : isrvec_stk_top --
 	 */
 	uint8_t		isrvec_stk[ISRVEC_STK_SIZE];
 	uint32_t	isrvec_stk_top;

@@ -337,7 +337,7 @@ static void vlapic_update_lvtt(struct acrn_vlapic *vlapic,
 	uint32_t timer_mode = val & APIC_LVTT_TM;
 	struct vlapic_timer *vtimer = &vlapic->vtimer;
 
-	if (vtimer->mode != timer_mode) {
+	if (vtimer->tm_mode != timer_mode) {
 		struct hv_timer *timer = &vtimer->timer;
 
 		/*
@@ -350,7 +350,7 @@ static void vlapic_update_lvtt(struct acrn_vlapic *vlapic,
 		timer->fire_tsc = 0UL;
 		timer->period_in_cycle = 0UL;
 
-		vtimer->mode = timer_mode;
+		vtimer->tm_mode = timer_mode;
 	}
 }
 
