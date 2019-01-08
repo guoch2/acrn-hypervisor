@@ -82,4 +82,5 @@
 #define APIC_OFFSET_TIMER_DCR	0x3E0U	/* Timer's Divide Configuration	*/
 #define APIC_OFFSET_SELF_IPI    0x3F0U  /* Self IPI Register */
 
+#define APIC_LVT_INVALID_VAL	0xFFFFFFFFU	/* illegal value of LVT register */
 #endif /* VLAPIC_PRIV_H */
