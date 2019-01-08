@@ -80,7 +80,7 @@ static int32_t local_gva2gpa_common(struct acrn_vcpu *vcpu, const struct page_wa
 	void *base;
 	uint64_t entry = 0U;
 	uint64_t addr;
-	uint64_t page_size = PAGE_SIZE_4K;
+	uint64_t pg_sz = PAGE_SIZE_4K;
 	int32_t ret = 0;
 	int32_t fault = 0;
 	bool is_user_mode_addr = true;
@@ -103,7 +103,7 @@ static int32_t local_gva2gpa_common(struct acrn_vcpu *vcpu, const struct page_wa
 			} else {
 				shift = (i * pw_info->bit_width) + 12U;
 				index = (gva >> shift) & ((1UL << pw_info->bit_width) - 1UL);
-				page_size = 1UL << shift;
+				pg_sz = 1UL << shift;
 
 				if (pw_info->bit_width == 10U) {
 					uint32_t *base32 = (uint32_t *)base;
@@ -200,7 +200,7 @@ static int32_t local_gva2gpa_common(struct acrn_vcpu *vcpu, const struct page_wa
 			/* shift left 12bit more and back to clear XD/Prot Key/Ignored bits */
 			entry <<= (shift + 12U);
 			entry >>= 12U;
-			*gpa = entry | (gva & (page_size - 1UL));
+			*gpa = entry | (gva & (pg_sz - 1UL));
 		}
 
 		clac();
