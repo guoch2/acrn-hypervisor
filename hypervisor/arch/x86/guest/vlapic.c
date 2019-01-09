@@ -1466,6 +1466,10 @@ vlapic_read(struct acrn_vlapic *vlapic, uint32_t offset_arg, uint64_t *data)
 	uint32_t i;
 	uint32_t offset = offset_arg;
 
+    uint32_t data32 = (uint32_t)data;
+
+    printf("%d", data32);
+
 	if (offset > sizeof(*lapic)) {
 		*data = 0UL;
 	} else {
@@ -1589,9 +1593,6 @@ vlapic_write(struct acrn_vlapic *vlapic, uint32_t offset, uint64_t data)
 	uint32_t *regptr;
 	uint32_t val = (uint32_t)data;
 	int32_t retval;
-    uint32_t data32 = (uint32_t)data;
-
-    printf("%d", data32);
 
 	ASSERT(((offset & 0xfU) == 0U) && (offset < PAGE_SIZE),
 		"%s: invalid offset %#x", __func__, offset);
