@@ -1466,7 +1466,7 @@ vlapic_read(struct acrn_vlapic *vlapic, uint32_t offset_arg, uint64_t *data)
 	uint32_t i;
 	uint32_t offset = offset_arg;
 
-    uint32_t data32 = *(uint32_t*)data;
+    uint32_t data32 = (uint32_t)(*data);
 
     printf("%d", data32);
 
